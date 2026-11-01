@@ -543,14 +543,19 @@ export default function (app) {
   };
 
   // Bow-referenced anchor geometry, matching what the UI draws on the map.
-  // Translates the GPS antenna fix to the bow using headingTrue and the
-  // configured GPS→bow offsets, then measures to the anchor. Bearings come
+  // Translates the GPS antenna fix to the bow using the true heading (see
+  // Geo.trueHeading) and the configured GPS→bow offsets, then measures to the
+  // anchor. Bearings come
   // back in radians (Signal K convention). With no heading the antenna fix
   // stands in for the bow and apparentBearing is null — it can't be referenced
   // to a bow we can't orient.
   plugin.computeBowMetrics = function (vesselPosition, anchorPosition) {
-    const headingRad = app.getSelfPath("navigation.headingTrue.value");
-    const hasHeading = Number.isFinite(headingRad);
+    const headingRad = Geo.trueHeading(
+      app.getSelfPath("navigation.headingTrue.value"),
+      app.getSelfPath("navigation.headingMagnetic.value"),
+      app.getSelfPath("navigation.magneticVariation.value"),
+    );
+    const hasHeading = headingRad !== undefined;
     const heading = hasHeading ? radiansToDegrees(headingRad) : 0;
 
     // Offsets only make sense once we can orient them by a heading.

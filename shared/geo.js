@@ -36,6 +36,21 @@ export class Geo {
     return { latitude: lat, longitude: lon };
   }
 
+  // Vessel heading in radians true: headingTrue, else headingMagnetic plus
+  // magneticVariation (or headingMagnetic alone), else undefined. Installing
+  // signalk-derived-data and enabling its True Heading calculation gives the
+  // same headingTrue, but takes more work by the user.
+  static trueHeading(headingTrue, headingMagnetic, magneticVariation) {
+    if (Number.isFinite(headingTrue))
+      return headingTrue;
+    if (!Number.isFinite(headingMagnetic))
+      return undefined;
+    const heading = Number.isFinite(magneticVariation)
+      ? headingMagnetic + magneticVariation
+      : headingMagnetic;
+    return (heading + 2 * Math.PI) % (2 * Math.PI);
+  }
+
   // Great-circle distance in meters between two { latitude, longitude } points.
   static distance(from, to) {
     return distance(

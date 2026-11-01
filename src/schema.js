@@ -81,7 +81,8 @@ export const requiredPaths = [
   },
   {
     path: "navigation.headingTrue",
-    description: "Optional - used for map-accurate heading. Provided by plugin derived-data",
+    description:
+      "Optional - used for map-accurate heading. Provided by plugin derived-data; without it navigation.headingMagnetic plus navigation.magneticVariation is used",
   },
   {
     path: "design.beam",

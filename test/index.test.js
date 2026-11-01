@@ -494,6 +494,16 @@ describe("checkPosition()", () => {
     assert.ok(Math.abs(h.lastDelta("navigation.anchor.distanceFromBow") - 30) < 1);
   });
 
+  test("falls back to headingMagnetic plus magneticVariation", () => {
+    const { h, plugin } = watching();
+    h.setSelfPath("navigation.headingMagnetic.value", 0.1);
+    h.setSelfPath("navigation.magneticVariation.value", -0.1); // true north
+    h.setSelfPath("sensors.gps.fromBow.value", 10);
+    plugin.checkPosition(vesselAt(ANCHOR, 40, 180));
+    assert.ok(Math.abs(h.lastDelta("navigation.anchor.distanceFromBow") - 30) < 1);
+    assert.ok(Math.abs(h.lastDelta("navigation.anchor.apparentBearing")) < 0.01);
+  });
+
   test("nulls apparentBearing when heading is unknown but still reports the rest", () => {
     const { h, plugin } = watching();
     plugin.checkPosition(vesselAt(ANCHOR, 40, 180));

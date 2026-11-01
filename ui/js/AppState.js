@@ -10,6 +10,7 @@ import {
   radiansToDegrees,
 } from "@turf/turf";
 import { GeoMath } from "./GeoMath.js";
+import { Geo } from "../../shared/geo.js";
 import { watchZoneFromConfig } from "../../shared/watch-zones/index.js";
 import { parseScopes, DEFAULT_SCOPES } from "../../shared/scopes.js";
 import { GlitchFilter, describeGlitch } from "../../shared/glitch-filter.js";
@@ -71,6 +72,20 @@ export class AppState {
           {
             path: "navigation.headingTrue",
             period: DELTA_FAST_SPEED,
+            format: "full",
+            policy: "fixed",
+            sendMeta: "all",
+          },
+          {
+            path: "navigation.headingMagnetic",
+            period: DELTA_FAST_SPEED,
+            format: "full",
+            policy: "fixed",
+            sendMeta: "all",
+          },
+          {
+            path: "navigation.magneticVariation",
+            period: DELTA_SLOW_SPEED,
             format: "full",
             policy: "fixed",
             sendMeta: "all",
@@ -187,10 +202,11 @@ export class AppState {
   // read-time accessor with a safe fallback. Unlike computeOwnHeading, each
   // source is gated on freshness so a dead compass feed can't freeze the
   // boat icon:
-  // headingTrue > TWA > bearing-to-anchor > 0
+  // true heading > TWA > bearing-to-anchor > 0
   getHeading() {
-    if (SignalKHelper.isFresh(this.heading))
-      return radiansToDegrees(this.heading.value);
+    const heading = this._ownTrueHeading(true);
+    if (heading !== undefined)
+      return radiansToDegrees(heading);
 
     if (SignalKHelper.isFresh(this.twa))
       return radiansToDegrees(this.twa.value);
@@ -276,6 +292,8 @@ export class AppState {
     }
     this.currentCoordinates = position;
     this.heading = this.extract(data, "navigation.headingTrue", this.heading);
+    this.headingMagnetic = this.extract(data, "navigation.headingMagnetic", this.headingMagnetic);
+    this.magneticVariation = this.extract(data, "navigation.magneticVariation", this.magneticVariation);
     this.belowKeel = this.extract(data, "environment.depth.belowKeel", this.belowKeel);
     this.belowSurface = this.extract(data, "environment.depth.belowSurface", this.belowSurface);
     this.belowTransducer = this.extract(data, "environment.depth.belowTransducer", this.belowTransducer);
@@ -377,6 +395,10 @@ export class AppState {
     }
     else if (path == "navigation.headingTrue")
       this.heading = apply(this.heading);
+    else if (path == "navigation.headingMagnetic")
+      this.headingMagnetic = apply(this.headingMagnetic);
+    else if (path == "navigation.magneticVariation")
+      this.magneticVariation = apply(this.magneticVariation);
     else if (path == "environment.depth.belowKeel")
       this.belowKeel = apply(this.belowKeel);
     else if (path == "environment.depth.belowSurface")
@@ -432,6 +454,10 @@ export class AppState {
         return this.currentCoordinates;
       case "navigation.headingTrue":
         return this.heading;
+      case "navigation.headingMagnetic":
+        return this.headingMagnetic;
+      case "navigation.magneticVariation":
+        return this.magneticVariation;
       case "environment.depth.belowKeel":
         return this.belowKeel;
       case "environment.depth.belowSurface":
@@ -652,13 +678,14 @@ export class AppState {
   }
 
   // Heading priority:
-  // SignalK headingTrue
+  // SignalK headingTrue, else headingMagnetic plus magneticVariation
   // bearing-to-anchor (if dropped)
   // last-known TWA
   // 0
   computeOwnHeading() {
-    if (this.heading)
-      return radiansToDegrees(this.heading.value);
+    const heading = this._ownTrueHeading(false);
+    if (heading !== undefined)
+      return radiansToDegrees(heading);
 
     const bearing = this._bearingToAnchor();
     if (bearing !== null)
@@ -668,6 +695,19 @@ export class AppState {
       return radiansToDegrees(this.twa.value);
 
     return 0;
+  }
+
+  // Own heading in radians true from the heading envelopes (see
+  // Geo.trueHeading), or undefined. With fresh set, a stale compass feed counts
+  // as missing.
+  _ownTrueHeading(fresh) {
+    const value = (env) =>
+      env && (!fresh || SignalKHelper.isFresh(env)) ? env.value : undefined;
+    return Geo.trueHeading(
+      value(this.heading),
+      value(this.headingMagnetic),
+      this.magneticVariation?.value,
+    );
   }
 
   // Degrees from our GPS position to the anchor, or null when either end is

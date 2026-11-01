@@ -43,6 +43,30 @@ describe("Geo.bowPosition()", () => {
   });
 });
 
+describe("Geo.trueHeading()", () => {
+  test("prefers headingTrue", () => {
+    assert.equal(Geo.trueHeading(1, 2, 0.1), 1);
+  });
+
+  test("adds the variation to headingMagnetic without headingTrue", () => {
+    closeTo(Geo.trueHeading(null, 2, 0.1), 2.1);
+    closeTo(Geo.trueHeading(undefined, 2, -0.1), 1.9);
+  });
+
+  test("uses headingMagnetic alone without a variation", () => {
+    assert.equal(Geo.trueHeading(undefined, 2, undefined), 2);
+  });
+
+  test("wraps into the [0, 2π) range", () => {
+    closeTo(Geo.trueHeading(undefined, 0.01, -0.05), 2 * Math.PI - 0.04);
+    closeTo(Geo.trueHeading(undefined, 2 * Math.PI - 0.01, 0.05), 0.04);
+  });
+
+  test("is undefined without a heading", () => {
+    assert.equal(Geo.trueHeading(undefined, null, 0.1), undefined);
+  });
+});
+
 describe("Geo.distance()", () => {
   test("matches the placement distance", () => {
     const vessel = vesselAt(ANCHOR, 55, 123);

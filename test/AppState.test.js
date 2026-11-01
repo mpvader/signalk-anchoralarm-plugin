@@ -125,6 +125,23 @@ describe("AppState.cleanDisplayUnits()", () => {
   });
 });
 
+describe("AppState.computeOwnHeading()", () => {
+  test("prefers headingTrue", () => {
+    const state = new AppState();
+    state.handleDelta(now(), { path: "navigation.headingTrue", value: Math.PI / 2 });
+    state.handleDelta(now(), { path: "navigation.headingMagnetic", value: Math.PI });
+    assert.equal(state.computeOwnHeading(), 90);
+  });
+
+  test("falls back to headingMagnetic plus magneticVariation", () => {
+    const state = new AppState();
+    state.handleDelta(now(), { path: "navigation.headingMagnetic", value: Math.PI / 2 });
+    state.handleDelta(now(), { path: "navigation.magneticVariation", value: Math.PI / 18 });
+    assert.ok(Math.abs(state.computeOwnHeading() - 100) < 1e-9);
+    assert.ok(Math.abs(state.getHeading() - 100) < 1e-9);
+  });
+});
+
 describe("AppState.calculateScope()", () => {
   test("returns 0 when the surface depth value is null (lost bottom lock)", () => {
     const state = new AppState();
